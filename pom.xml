@@ -72,13 +72,11 @@
       <artifactId>jerkson_2.9.1</artifactId>
       <version>0.5.0</version>
     </dependency>
-    <!--
     <dependency>
-      <groupId>org.scalaquery</groupId>
-      <artifactId>scalaquery_2.9.1</artifactId>
-      <version>0.10.0-M1</version>
+      <groupId>com.github.scopt</groupId>
+      <artifactId>scopt_2.9.2</artifactId>
+      <version>2.1.0</version>
     </dependency>
--->
     <dependency>
       <groupId>mysql</groupId>
       <artifactId>mysql-connector-java</artifactId>
