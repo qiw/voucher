@@ -83,6 +83,18 @@ our inventory will be updated. Here, currently this is a pain because we have to
 game developer has to do.
 
 
+* How to build
+  1. install maven: http://maven.apache.org/guides/getting-started/maven-in-five-minutes.html
+  2. in the project's root directory: mvn build to build and mvn package to package
+
+* How to run
+  - make sure mysql is working
+  - create a db
+  - make sure a db user has read/write privilege to the db
+  - run "mvn package" which produces a zip in target directory
+  - find some other directory, unzip that zip
+  - first time, create the tables using mysql -u <user> -p<password> -D <db> < src/main/scripts/create_tables
+  - in this directory, scripts/voucher.sh [options]. the availabe options are in the first section.
 
 * display QR code
  embed this in some web view of the app
