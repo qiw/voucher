@@ -1,0 +1,23 @@
+* Usage
+
+Usage: java -jar <jarfile> [options] 
+
+  --port <value>
+        port of http service
+  --dbhost <value>
+        mysql host
+  --dbport <value>
+        mysql port
+  --db <value>
+        db name
+  --dbuser <value>
+        db user, be sure to have r/w privilege
+  --dbpwd <value>
+        password
+  --qrsize <value>
+        size of the qr code png
+
+
+* Embed QR code
+<img alt="Embedded Image"   
+ src="data:image/png;base64,<paste the encoded qr code here>" />

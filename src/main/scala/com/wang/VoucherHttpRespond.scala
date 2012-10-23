@@ -59,24 +59,31 @@ class VoucherHttpRespond(voucherService: VoucherService) extends Service[HttpReq
     val postParams:Map[JString, JList[JString]]  = postDecoder.getParameters
 
     val json = (httpMethod, queryDecoder.getPath) match {
-      case (HttpMethod.PUT, "/voucher") =>
-        // todo: translate the integer return to string
-        postParams.get("code") map { c =>
+      case (HttpMethod.GET, "/voucher") =>
+        params.get("code") map { c =>
           generate(voucherService redeemVoucher c.get(0))
         } getOrElse("")
+
       case (HttpMethod.POST, "/voucher") =>
         val u = postParams.get("user") map(_.get(0)) getOrElse { throw new InvalidHttpParameter("invalid user") }
         val promotionId = postParams.get("pid") map(_.get(0)) getOrElse { throw new InvalidHttpParameter("invalid user") }
         generate(voucherService.createVoucher(u, promotionId.toInt))
-      case (HttpMethod.GET, "/promotion") =>
+
+      case (HttpMethod.POST, "/promotion") =>
         val u = params.get("user") map(_.get(0)) getOrElse { throw new InvalidHttpParameter("invalid user") }
         val game = params.get("game") map(_.get(0)) getOrElse { throw new InvalidHttpParameter("invalid game") }
         val vid = params.get("vid") map(_.get(0)) getOrElse { throw new InvalidHttpParameter("invalid vid") }
-        generate(voucherService.getPromotion(u, game.toInt, vid.toInt))
+        generate(voucherService.findPromotion(u, game.toInt, vid.toInt))
+
+      case (HttpMethod.GET, "/promotion") =>
+        val pid = params.get("pid") map(_.get(0)) getOrElse { throw new InvalidHttpParameter("invalid vid") }
+        generate(voucherService.getPromotion(pid.toInt))
+
       case (HttpMethod.GET, "/inventory") =>
         val u = params.get("user") map(_.get(0)) getOrElse { throw new InvalidHttpParameter("invalid user") }
         val game = params.get("game") map(_.get(0)) getOrElse { throw new InvalidHttpParameter("invalid game") }
         generate(voucherService.getVirtualGoodsInventory(u, game.toInt))
+
       case (HttpMethod.DELETE, "/inventory") =>
         val u = params.get("user") map(_.get(0)) getOrElse { throw new InvalidHttpParameter("invalid user") }
         val game = params.get("game") map(_.get(0)) getOrElse { throw new InvalidHttpParameter("invalid game") }
@@ -84,7 +91,7 @@ class VoucherHttpRespond(voucherService: VoucherService) extends Service[HttpReq
         val amount = params.get("amt") map(_.get(0)) getOrElse { throw new InvalidHttpParameter("invalid amt") }
         
         voucherService.consumeVirtualGoods(u, game.toInt, vid.toInt, amount.toInt)
-        ""
+        "consumed"
       case p =>
         log.info("unknow path " + p)
         ""

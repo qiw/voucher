@@ -1,33 +1,46 @@
 package com.wang
 
+import javax.xml.bind.DatatypeConverter
 
 import scala.util.Random
 
+import org.slf4j.LoggerFactory
+
 import com.twitter.querulous.evaluator.QueryEvaluator
+
+import com.wang.util.Util
 
 // business logic of voucher service
 
-class VoucherService(queryEvaluator: QueryEvaluator) {
+class VoucherService(queryEvaluator: QueryEvaluator, qrsize:Int) {
+  val MAX_QR_SIZE = 480
   val rand = new Random(System.currentTimeMillis)
+  val codeBuf = new Array[Byte](8);
+  val log = LoggerFactory.getLogger(getClass.getName)
 
   
   /*
    * todo: add security check; only targeted merchant can call this method
    */
   def redeemVoucher(hashCode: String) = {
-    queryEvaluator.select("select * from vouchers join promotions " + 
-                          "on vouchers.promotion_id = promotions.id " +
+    queryEvaluator.select("select vouchers.id as vid, user_id, game_id,  virtual_product_id, virtual_product_amount " + 
+                          "from vouchers join promotions on vouchers.promotion_id = promotions.id " +
                           "where vouchers.code = ?", hashCode) { rs =>
-      (rs.getString("user_id"), rs.getInt("game_id"), rs.getInt("virtual_product_id"), rs.getInt("virtual_product_amount"))
-    }.headOption map { case(user, gameId, pid, amt) =>
-      queryEvaluator.execute("insert into inventory (user_id, game_id, product_id, amount) values(?, ?, ?, ?) " +
-                             "on duplicate key update amount = amount + values(amount)", user, gameId, pid, amt)
+      (rs.getString("user_id"), rs.getInt("game_id"), rs.getInt("virtual_product_id"), rs.getInt("virtual_product_amount"),
+       rs.getInt("vid"))
+    }.headOption map { case(user, gameId, pid, amt, vid) =>
+      queryEvaluator.transaction { transaction =>
+        transaction.execute("insert into inventory (user_id, game_id, product_id, amount) values(?, ?, ?, ?) " +
+                            "on duplicate key update amount = amount + values(amount)", user, gameId, pid, amt)
+        transaction.execute("delete from vouchers where id = ?", vid)
+
+      }
       Map("description" -> "redeemed")
     } getOrElse(Map("description" -> "invalid voucher"))
   }
 
   // match a promotion, now hard coded
-  def getPromotion(userId: String, gameId:Int, vGoodId:Int) = {
+  def findPromotion(userId: String, gameId:Int, vGoodId:Int) = {
 
     queryEvaluator.select("select * from promotions limit 1") { rs =>
       (rs.getInt("id"), rs.getString("description"))
@@ -35,19 +48,29 @@ class VoucherService(queryEvaluator: QueryEvaluator) {
       Map("description" -> desc, "promotionId" -> id)
     } getOrElse(Map("description" -> "no promotion found"))
   }
+
+
+  // used by merchant to display promotion before confirm the voucher
+  def getPromotion(promotionId:Int) = {
+    queryEvaluator.select("select * from promotions where id = ?", promotionId) { rs =>
+      rs.getString("description")
+    }.headOption map { d =>
+      Map("description" -> d)
+    } getOrElse (Map("description" -> "invalid promotion"))
+  }
  
   // the code generated should contain the info of merchant, product_id and amout
   // find a better way to do this
   def createVoucher(userId: String, promotionId:Int) = {
     queryEvaluator.select("select * from promotions where id = ?", promotionId) { rs =>
-      (rs.getInt("merchant_id"), rs.getInt("product_id"), rs.getInt("product_amount")) 
-    }.headOption map { case(m_id, p_id, amt) =>
-      val code = "%s+%d+%d+%d" format(rand nextString(10), m_id, p_id, amt)
-                                      
+      (rs.getInt("id")) 
+    }.headOption map { p_id =>
+      val code = Util.md5Digest("%s %d" format(userId, promotionId))                                
       queryEvaluator.execute("insert into vouchers (user_id, promotion_id, code) values (?, ?, ?)",
         userId, promotionId, code)
-      Map("description" -> "voucher created", 
-          "code" -> code)
+      // make a qr code
+      val qr = Util.makeBase64QRCodePNG("%s %d" format(code, p_id), Math.min(MAX_QR_SIZE, qrsize))
+      Map("description" -> "voucher created", "code" -> qr)
     } getOrElse {
       Map("description" -> "promotion doesn't exist")
     }
@@ -64,9 +87,11 @@ class VoucherService(queryEvaluator: QueryEvaluator) {
   // user consumes the virtual goods
   // todo: verify input
   def consumeVirtualGoods(userId:String, gameId:Int, vGoodId:Int, amount:Int) {
-    queryEvaluator.execute("update inventory set amount = amount - ? " +
+    // minimum amount is 0, no negative
+    queryEvaluator.execute("update inventory set amount = if(amount - ? > 0, amount - ?, 0) " +
                            "where user_id = ? and game_id = ? and product_id = ?",
-                           amount, userId, gameId, vGoodId)
+                           amount, amount, userId, gameId, vGoodId)
   }
+
 
 }
