@@ -17,9 +17,6 @@
     <fileSet>
       <directory>${project.build.scriptSourceDirectory}</directory>
       <outputDirectory>scripts</outputDirectory>
-      <includes>
-	<include>*.sh</include>
-      </includes>
       <fileMode>0755</fileMode>
     </fileSet>
     <fileSet>
