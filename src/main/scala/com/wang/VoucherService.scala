@@ -97,7 +97,10 @@ class VoucherService(queryEvaluator: AsyncQueryEvaluator, qrsize:Int) {
     // minimum amount is 0, no negative
     queryEvaluator.execute("update inventory set amount = if(amount - ? > 0, amount - ?, 0) " +
                            "where user_id = ? and game_id = ? and product_id = ?",
-                           amount, amount, userId, gameId, vGoodId) map { _ => ""}
+                           amount, amount, userId, gameId, vGoodId) map {
+      case 1 => "consumed"
+      case _ => "virtual product not found"
+    }
   }
 
 }

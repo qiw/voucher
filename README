@@ -27,6 +27,8 @@ there is a api specific key to return some api specific results.
 GET /voucher?code=<code>  redeem voucher, <code> is what one gets from the
 following api.
 
+return: a string describing if redemption succeeds or it's an invalid voucher
+
 
 POST /voucher  create a voucher for a user
 
@@ -34,6 +36,7 @@ params:
 user - user id, currently email
 pid  - promotion id, see later
 
+return: json map
 there will be a 'code' key in the map if succeed whose value is the encoded png
 image of the qr-code. see the last section for how to display it.
 
@@ -45,6 +48,7 @@ user - user id, currently email
 game - game id
 vid - virtual product id, game specific
 
+return: json map
 there will be a promotionId key in the result whose value is the promotion id
 which is used to create voucher in the above api. Currently the logic is hard
 code to select the first promotion availabe.  There should also be some
@@ -54,17 +58,25 @@ It's easy to add more stuffs to the result.
 
 GET /promotion?pid=<promotion id>  get the info for a promotion
 
+return: json map
 The typical usage for this api is that, a merchant needs to see what the
-promotion is before he could award the virtual product to the user. This api is
-mainly called by apps developed for merchants.  see code sample below.
+promotion is before he could award the virtual product to the user. It should
+return whatever is returned by 'POST /promotion' regarding to the promotion info
+without promotion id. This api is mainly called by apps developed for
+merchants.  see code sample below.
 
 
 GET /inventory?user=<user id>&game=<game id> get the list of virtual products
 
-In the game, call this method to get all the virtual prodcts a user has.
+return: json map
+In the game, call this method to get all the virtual prodcts a user has. Each
+key is the virtual product id which is game specific and the value is the amount
+of it.
 
 
 DELETE /inventory?user<user id>&game=<game id>&vid=<virtual product id>&amt=<amount>
+
+return: a string describing what happened
 
 Called in the game to notify us that certain virtual product is consumed.
 
