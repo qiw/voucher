@@ -29,6 +29,12 @@
     <repository>
       <id>repo.codahale.com</id>
       <url>http://repo.codahale.com</url>
+      <snapshots>
+        <enabled>false</enabled>
+      </snapshots>
+      <releases>
+        <updatePolicy>never</updatePolicy>
+      </releases>
     </repository>
   </repositories>
   <pluginRepositories>

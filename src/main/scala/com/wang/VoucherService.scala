@@ -15,7 +15,6 @@ import com.wang.util.Util
 class VoucherService(queryEvaluator: QueryEvaluator, qrsize:Int) {
   val MAX_QR_SIZE = 480
   val rand = new Random(System.currentTimeMillis)
-  val codeBuf = new Array[Byte](8);
   val log = LoggerFactory.getLogger(getClass.getName)
 
   
@@ -65,7 +64,8 @@ class VoucherService(queryEvaluator: QueryEvaluator, qrsize:Int) {
     queryEvaluator.select("select * from promotions where id = ?", promotionId) { rs =>
       (rs.getInt("id")) 
     }.headOption map { p_id =>
-      val code = Util.md5Digest("%s %d" format(userId, promotionId))                                
+      // using timestamp and random number to ensure uniqueness of the code
+      val code = Util.md5Digest("%s %d %d %d" format(userId, promotionId, System.currentTimeMillis, rand.nextInt))
       queryEvaluator.execute("insert into vouchers (user_id, promotion_id, code) values (?, ?, ?)",
         userId, promotionId, code)
       // make a qr code
