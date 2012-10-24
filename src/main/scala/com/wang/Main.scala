@@ -4,11 +4,13 @@ import org.slf4j.LoggerFactory
 
 
 import java.net.InetSocketAddress
-import com.twitter.finagle.builder.ServerBuilder
 
+import com.twitter.conversions.time._
+import com.twitter.finagle.builder.ServerBuilder
 import com.twitter.finagle.http.Http
 
-import com.twitter.querulous.evaluator.QueryEvaluator
+import com.twitter.querulous.config.AsyncQueryEvaluator
+import com.twitter.querulous.config.ApachePoolingDatabase
 
 import scopt.immutable.OptionParser
 
@@ -32,10 +34,25 @@ object Main {
       )
     }
 
+
+    val queryConfig = new AsyncQueryEvaluator {
+      override var workPoolSize = 8
+      maxWaiters = 1000
+      cachedConnection = false
+      database.pool = new ApachePoolingDatabase {
+        sizeMin = 0
+        sizeMax = workPoolSize
+        testIdle = 1.minute
+        maxWait = 200.millis
+        minEvictableIdle = 5.minute
+      } 
+    }
+
+
     parser parse(args, Config()) map { config =>
-      val respond = new VoucherHttpRespond(new VoucherService(QueryEvaluator(
-        "%s:%d" format(config.host, config.dbport), config.db, config.dbuser, config.dbpwd, Map[String, String](), "jdbc:mysql"),
-        config.qrsize))
+      val queryEvaluator = queryConfig()("%s:%d" format(config.host, config.dbport),
+                                         config.db, config.dbuser, config.dbpwd)
+      val respond = new VoucherHttpRespond(new VoucherService(queryEvaluator, config.qrsize))
       val handleException = new HandleExceptions
 
       val server = ServerBuilder()
