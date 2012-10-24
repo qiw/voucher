@@ -1,6 +1,5 @@
 package com.wang
 
-import java.net.URLEncoder
 import javax.xml.bind.DatatypeConverter
 
 import scala.util.Random
@@ -72,8 +71,7 @@ class VoucherService(queryEvaluator: AsyncQueryEvaluator, qrsize:Int) {
     } flatMap(
       _.headOption map { p_id =>
       // using timestamp and random number to ensure uniqueness of the code
-      val code = URLEncoder.encode(
-        Util.md5Digest("%s %d %d %d" format(userId, promotionId, System.currentTimeMillis, rand.nextInt)))
+      val code = Util.md5Digest("%s %d %d %d" format(userId, promotionId, System.currentTimeMillis, rand.nextInt))
       queryEvaluator.execute("insert into vouchers (user_id, promotion_id, code) values (?, ?, ?)",
           userId, promotionId, code) map { _ =>
           // make a qr code
