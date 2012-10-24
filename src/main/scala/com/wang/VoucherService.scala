@@ -30,7 +30,8 @@ class VoucherService(queryEvaluator: AsyncQueryEvaluator, qrsize:Int) {
                           "where vouchers.code = ?", hashCode) { rs =>
       (rs.getString("user_id"), rs.getInt("game_id"), rs.getInt("virtual_product_id"), rs.getInt("virtual_product_amount"),
        rs.getInt("vid"))
-    } flatMap(_.headOption map { case(user, gameId, pid, amt, vid) =>
+    } flatMap(
+      _.headOption map { case(user, gameId, pid, amt, vid) =>
         queryEvaluator.transaction { transaction =>
           transaction.execute("insert into inventory (user_id, game_id, product_id, amount) values(?, ?, ?, ?) " +
                               "on duplicate key update amount = amount + values(amount)", user, gameId, pid, amt)
@@ -46,7 +47,8 @@ class VoucherService(queryEvaluator: AsyncQueryEvaluator, qrsize:Int) {
 
     queryEvaluator.select("select * from promotions limit 1") { rs =>
       (rs.getInt("id"), rs.getString("description"))
-    } map(_.headOption map { case(id, desc) =>
+    } map(
+      _.headOption map { case(id, desc) =>
         Map("description" -> desc, "promotionId" -> id)
       } getOrElse(Map("description" -> "no promotion found"))
     )
@@ -56,7 +58,8 @@ class VoucherService(queryEvaluator: AsyncQueryEvaluator, qrsize:Int) {
   def getPromotion(promotionId:Int) = {
     queryEvaluator.select("select * from promotions where id = ?", promotionId) { rs =>
       rs.getString("description")
-    } map(_.headOption map { d => Map("description" -> d)
+    } map(
+      _.headOption map { d => Map("description" -> d)
       } getOrElse (Map("description" -> "invalid promotion"))
     )
   }
@@ -66,17 +69,18 @@ class VoucherService(queryEvaluator: AsyncQueryEvaluator, qrsize:Int) {
   def createVoucher(userId: String, promotionId:Int) = {
     queryEvaluator.select("select * from promotions where id = ?", promotionId) { rs =>
       (rs.getInt("id"))
-    } flatMap(_.headOption map { p_id =>
-        // using timestamp and random number to ensure uniqueness of the code
-        val code = URLEncoder.encode(
-          Util.md5Digest("%s %d %d %d" format(userId, promotionId, System.currentTimeMillis, rand.nextInt)))
-        queryEvaluator.execute("insert into vouchers (user_id, promotion_id, code) values (?, ?, ?)",
-            userId, promotionId, code) map { _ =>
-            // make a qr code
-            val qr = Util.makeBase64QRCodePNG("%s %d" format(code, p_id), Math.min(MAX_QR_SIZE, qrsize))
-            Map("description" -> "voucher created", "code" -> qr)
-          }
-        } getOrElse(Future.value(Map("description" -> "promotion doesn't exist")))
+    } flatMap(
+      _.headOption map { p_id =>
+      // using timestamp and random number to ensure uniqueness of the code
+      val code = URLEncoder.encode(
+        Util.md5Digest("%s %d %d %d" format(userId, promotionId, System.currentTimeMillis, rand.nextInt)))
+      queryEvaluator.execute("insert into vouchers (user_id, promotion_id, code) values (?, ?, ?)",
+          userId, promotionId, code) map { _ =>
+          // make a qr code
+          val qr = Util.makeBase64QRCodePNG("%s %d" format(code, p_id), Math.min(MAX_QR_SIZE, qrsize))
+          Map("description" -> "voucher created", "code" -> qr)
+        }
+      } getOrElse(Future.value(Map("description" -> "promotion doesn't exist")))
     )
   }
 
