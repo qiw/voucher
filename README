@@ -1,13 +1,13 @@
 * Usage
 
-Usage: java -jar <jarfile> [options] 
+Usage: java -jar <jarfile> [options]
 
   --port <value>
-        port of http service
+        port of http service, default 65000
   --dbhost <value>
-        mysql host
+        mysql host, default localhost
   --dbport <value>
-        mysql port
+        mysql port, default 3306
   --db <value>
         db name
   --dbuser <value>
@@ -15,88 +15,124 @@ Usage: java -jar <jarfile> [options]
   --dbpwd <value>
         password
   --qrsize <value>
-        size of the qr code png
+        size of the qr code png, default 160
+
 
 * API
-All the apis(except consue) will return json encoded maps which contains a description key
-to describe what has happened and there is a api specific key to return some api specific
-result.
+All the apis(except the one consumes the virtual product) will return a json
+encoded map which contains a description key to describe what happened and
+there is a api specific key to return some api specific results.
 
-GET /voucher?code=<code>  redeem voucher, <code> is what one gets from the following api.
+
+GET /voucher?code=<code>  redeem voucher, <code> is what one gets from the
+following api.
+
 
 POST /voucher  create a voucher for a user
-params: user - user id, currently email
-        pid  - promotion id, see later
-there will be a 'code' key in the map if succeed whose value is the encode png image of the qr-code
-see the last section for how to display it.
+
+params:
+user - user id, currently email
+pid  - promotion id, see later
+
+there will be a 'code' key in the map if succeed whose value is the encoded png
+image of the qr-code. see the last section for how to display it.
+
 
 POST /promotion find a promotion for a user in a game
-params: user - user id, currently email
-        game - game id
-        vid - virtual product id, game specific
-there will be a promotionId key whose value is the promotion id which is used to create voucher
-in the above api. Currently the logic is hard code to select the first promotion availabe.
-There should also be promotion specifi info returned but currently I only put description there.
-It's easy to add more stuffs to this map.
+
+params:
+user - user id, currently email
+game - game id
+vid - virtual product id, game specific
+
+there will be a promotionId key in the result whose value is the promotion id
+which is used to create voucher in the above api. Currently the logic is hard
+code to select the first promotion availabe.  There should also be some
+promotion specific info returned but currently I only put description there.
+It's easy to add more stuffs to the result.
+
 
 GET /promotion?pid=<promotion id>  get the info for a promotion
-The typical usage for this api is that, a merchant needs to see what the promotion is before he
-could award the virtual product to user. This api is mainly called by apps developed for merchant.
-see code sample below.
 
-GET /inventory?user=<user id>&game=<game id> get the inventory of virtual product
+The typical usage for this api is that, a merchant needs to see what the
+promotion is before he could award the virtual product to the user. This api is
+mainly called by apps developed for merchants.  see code sample below.
+
+
+GET /inventory?user=<user id>&game=<game id> get the list of virtual products
+
 In the game, call this method to get all the virtual prodcts a user has.
 
-DELETE /inventory?user<user id>&game=<game id>&vid=<virtual product id>&amt=<amount>
-called in the game to notify us that certain virtual product is consumed.
 
-Ideally the following api should be provided by the game not us because bookkeeping all these
-game specific data is a burden and error prone.
+DELETE /inventory?user<user id>&game=<game id>&vid=<virtual product id>&amt=<amount>
+
+Called in the game to notify us that certain virtual product is consumed.
+
+Ideally the above two api should be provided by the game not us because
+bookkeeping all these game specific data is a burden and error prone.
+
 
 Sample code:
-Assume we have a instance of webservice who has an issue method to issue different http calls.
-In the game when the game logic decides when to ask the user if he'd be interested in a voucher:
+
+Assume we have a instance of webservice who has an issue method to issue
+different http calls.  In the game when the game logic decides to ask the user
+if he'd be interested in a voucher, here is what we do.
 
 json_map = webservice.issue(POST, <our host>/promotion, postParams)
-if (no promotion) deal with it;
-display the promotion info in json_map and ask you if he takes it.
+if (no promotion) return;
+
+display the promotion info in json_map and ask if user takes it.
 if (he takes it) {
-  json_map = webservice.issue(POST, <our host>/voucher, postParams)  
+  json_map = webservice.issue(POST, <our host>/voucher, postParams)
   // json_map["code"] is the qr-code.
-  display the qr-code or send the user an email saying that the merchant can redeem this voucher
-  using this qr-code
-  resume game.
+  display the qr-code or send the user an email saying that the merchant can
+redeem this voucher by scanning this qr-code
+  resume game
 }
 
-Merchant's app
-scan the qr-code which is simply a "code promotionId".
-webservice.issue(GET, <our host>/promotion?pid=promotionId)
-the merchant should confirm that what the user is buying is exact what this promotion is about.
-Then,
-webservice.issue(GET, <our host>/voucher?code=<code>)
-the code is the hash code we got above. The voucher will be destroyed and the virtual product
-amount will be credited.
+Merchant's app scan the qr-code which is simply a "code promotionId". Then,
 
-In the game, when the virtual product is used,
+webservice.issue(GET, <our host>/promotion?pid=promotionId)
+
+the merchant should confirm that what the user is buying is exact what this
+promotion is about. Then,
+
+webservice.issue(GET, <our host>/voucher?code=<code>)
+
+the code is the hash code we got above. The voucher will be destroyed and the
+corresponding amount of virtual product will be credited to the user id that is
+used to create this voucher.
+
+In the game, when the virtual product is consumed,
+
 webservice.issue(DELETE, <our host>/inventory, postParams)
-our inventory will be updated. Here, currently this is a pain because we have to do what the
-game developer has to do.
+
+our inventory will be updated. Here, currently this is a pain because we have
+to do what the game developer is supposed to do.
 
 
 * How to build
-  1. install maven: http://maven.apache.org/guides/getting-started/maven-in-five-minutes.html
-  2. in the project's root directory: mvn build to build and mvn package to package
+  1. install maven:
+  http://maven.apache.org/guides/getting-started/maven-in-five-minutes.html
+  2. in the project's root directory:
+  mvn package
+  Then there will be a zip file in the target directory.
+
 
 * How to run
   - make sure mysql is working
   - create a db
-  - make sure a db user has read/write privilege to the db
-  - run "mvn package" which produces a zip in target directory
-  - find some other directory, unzip that zip
-  - first time, create the tables using mysql -u <user> -p<password> -D <db> < src/main/scripts/create_tables
-  - in this directory, scripts/voucher.sh [options]. the availabe options are in the first section.
+  - make sure a db user has read/write privilege to the db created
+  - find some other directory, unzip the zip file we got in step 2.
+  - first time, create the tables using
+    mysql -u myuser -p"mypassword"  -D mydb < src/main/scripts/create_tables
+  - in this directory,
+    scripts/voucher.sh [options]. the availabe options are in the first section.
+    You can also run the jar file directly by
+    java -jar <jarfile> [options]
+
 
 * display QR code
- embed this in some web view of the app
-<img alt="Embedded Image"   
- src="data:image/png;base64,<paste the encoded qr code here>" />
+  embed this in some web view of the app
+  <img alt="Embedded Image"
+  src="data:image/png;base64,<paste the encoded qr code here>" />
