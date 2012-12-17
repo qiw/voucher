@@ -50,10 +50,8 @@ class VoucherHttpRespond(voucherService: VoucherService) extends Service[HttpReq
     val httpMethod = request.getMethod
 
     val queryDecoder = new QueryStringDecoder(request.getUri)
-    val postDecoder = new QueryStringDecoder("?" + request.getContent.toString(org.jboss.netty.util.CharsetUtil.UTF_8))
 
     val params:Map[JString, JList[JString]] = queryDecoder.getParameters
-    val postParams:Map[JString, JList[JString]]  = postDecoder.getParameters
 
     ((httpMethod, queryDecoder.getPath) match {
       case (HttpMethod.GET, "/voucher") =>
@@ -62,14 +60,14 @@ class VoucherHttpRespond(voucherService: VoucherService) extends Service[HttpReq
         } getOrElse(Future.value(""))
 
       case (HttpMethod.POST, "/voucher") =>
-        val u = postParams.get("user") map(_.get(0)) getOrElse { throw new InvalidHttpParameter("invalid user") }
-        val promotionId = postParams.get("pid") map(_.get(0)) getOrElse { throw new InvalidHttpParameter("invalid user") }
+        val u = params.get("user") map(_.get(0)) getOrElse { throw new InvalidHttpParameter("invalid user") }
+        val promotionId = params.get("pid") map(_.get(0)) getOrElse { throw new InvalidHttpParameter("invalid user") }
         voucherService.createVoucher(u, promotionId.toInt)
 
       case (HttpMethod.POST, "/promotion") =>
-        val u = postParams.get("user") map(_.get(0)) getOrElse { throw new InvalidHttpParameter("invalid user") }
-        val game = postParams.get("game") map(_.get(0)) getOrElse { throw new InvalidHttpParameter("invalid game") }
-        val vid = postParams.get("vid") map(_.get(0)) getOrElse { throw new InvalidHttpParameter("invalid vid") }
+        val u = params.get("user") map(_.get(0)) getOrElse { throw new InvalidHttpParameter("invalid user") }
+        val game = params.get("game") map(_.get(0)) getOrElse { throw new InvalidHttpParameter("invalid game") }
+        val vid = params.get("vid") map(_.get(0)) getOrElse { throw new InvalidHttpParameter("invalid vid") }
         voucherService.findPromotion(u, game.toInt, vid.toInt)
 
       case (HttpMethod.GET, "/promotion") =>
