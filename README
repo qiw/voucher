@@ -30,7 +30,7 @@ following api.
 return: a string describing if redemption succeeds or it's an invalid voucher
 
 
-POST /voucher  create a voucher for a user
+POST /voucher?user=<user>&pid=<promotion id>  create a voucher for a user
 
 params:
 user - user id, currently email
@@ -41,7 +41,8 @@ there will be a 'code' key in the map if succeed whose value is the encoded png
 image of the qr-code. see the last section for how to display it.
 
 
-POST /promotion find a promotion for a user in a game
+POST /promotion?user=<user>&game=<game id>&vid=<virtual product id> find a
+promotion for a user in a game
 
 params:
 user - user id, currently email
@@ -90,12 +91,12 @@ Assume we have a instance of webservice who has an issue method to issue
 different http calls.  In the game when the game logic decides to ask the user
 if he'd be interested in a voucher, here is what we do.
 
-json_map = webservice.issue(POST, <our host>/promotion, postParams)
+json_map = webservice.issue(POST, <our host>/promotion?user=<user>&game=<game id>&vid=<virtual product id>)
 if (no promotion) return;
 
 display the promotion info in json_map and ask if user takes it.
 if (he takes it) {
-  json_map = webservice.issue(POST, <our host>/voucher, postParams)
+  json_map = webservice.issue(POST, <our host>/voucher?user=<user>&pid=<promotion id>)
   // json_map["code"] is the qr-code.
   display the qr-code or send the user an email saying that the merchant can
 redeem this voucher by scanning this qr-code
@@ -117,7 +118,7 @@ used to create this voucher.
 
 In the game, when the virtual product is consumed,
 
-webservice.issue(DELETE, <our host>/inventory, postParams)
+webservice.issue(DELETE, <our host>/inventory?user<user id>&game=<game id>&vid=<virtual product id>&amt=<amount>)
 
 our inventory will be updated. Here, currently this is a pain because we have
 to do what the game developer is supposed to do.
