@@ -24,16 +24,15 @@ class VoucherService(queryEvaluator: AsyncQueryEvaluator, qrsize:Int) {
    * todo: add security check; only targeted merchant can call this method
    */
   def redeemVoucher(hashCode: String) = {
-    queryEvaluator.select("select vouchers.id as vid, user_id, game_id,  virtual_product_id, virtual_product_amount " + 
-                          "from vouchers join promotions on vouchers.promotion_id = promotions.id " +
+    queryEvaluator.select("select vouchers.id as vid, user_id, matches.app_id as game_id,  matches.item_id as virtual_product_id " + 
+                          "from vouchers join matches on vouchers.promotion_id = matches.id " +
                           "where vouchers.code = ?", hashCode) { rs =>
-      (rs.getString("user_id"), rs.getInt("game_id"), rs.getInt("virtual_product_id"), rs.getInt("virtual_product_amount"),
-       rs.getInt("vid"))
+      (rs.getString("user_id"), rs.getInt("game_id"), rs.getInt("virtual_product_id"), rs.getInt("vid"))
     } flatMap(
-      _.headOption map { case(user, gameId, pid, amt, vid) =>
+      _.headOption map { case(user, gameId, pid, vid) =>
         queryEvaluator.transaction { transaction =>
-          transaction.execute("insert into inventory (user_id, game_id, product_id, amount) values(?, ?, ?, ?) " +
-                              "on duplicate key update amount = amount + values(amount)", user, gameId, pid, amt)
+          transaction.execute("insert into virtual_items (user_id, app_id, item_id, amount) values(?, ?, ?, 1) " +
+                              "on duplicate key update amount = amount + values(amount)", user, gameId, pid)
           transaction.execute("delete from vouchers where id = ?", vid)
 
         } map { _ => "redeemed" }
@@ -44,8 +43,10 @@ class VoucherService(queryEvaluator: AsyncQueryEvaluator, qrsize:Int) {
   // match a promotion, now hard coded
   def findPromotion(userId: String, gameId:Int, vGoodId:Int) = {
 
-    queryEvaluator.select("select * from promotions limit 1") { rs =>
-      (rs.getInt("id"), rs.getString("description"))
+    queryEvaluator.select("select * from matches join campaigns on matches.campaign_id = campaigns.id " +
+                          "where matches.app_id = ? and matches.item_id = ? order by match_degree desc limit 1",
+                          gameId, vGoodId) { rs =>
+      (rs.getInt("matches.id"), rs.getString("campaigns.other_infos"))
     } map(
       _.headOption map { case(id, desc) =>
         Map("description" -> desc, "promotionId" -> id)
@@ -55,8 +56,9 @@ class VoucherService(queryEvaluator: AsyncQueryEvaluator, qrsize:Int) {
 
   // used by merchant to display promotion before confirm the voucher
   def getPromotion(promotionId:Int) = {
-    queryEvaluator.select("select * from promotions where id = ?", promotionId) { rs =>
-      rs.getString("description")
+    queryEvaluator.select("select * from matches join campaigns on matches.campaign_id = campaigns.id " +
+                          "where matches.id = ?", promotionId) { rs =>
+      rs.getString("campaigns.other_infos")
     } map(
       _.headOption map { d => Map("description" -> d)
       } getOrElse (Map("description" -> "invalid promotion"))
@@ -66,7 +68,7 @@ class VoucherService(queryEvaluator: AsyncQueryEvaluator, qrsize:Int) {
   // the code generated should contain the info of merchant, product_id and amout
   // find a better way to do this
   def createVoucher(userId: String, promotionId:Int) = {
-    queryEvaluator.select("select * from promotions where id = ?", promotionId) { rs =>
+    queryEvaluator.select("select * from matches where id = ?", promotionId) { rs =>
       (rs.getInt("id"))
     } flatMap(
       _.headOption map { p_id =>
@@ -84,8 +86,8 @@ class VoucherService(queryEvaluator: AsyncQueryEvaluator, qrsize:Int) {
 
   // return the in game virtual goods list
   def getVirtualGoodsInventory(userId:String, gameId:Int) = {
-    queryEvaluator.select("select * from inventory where user_id = ? and game_id = ?", userId, gameId) { rs =>
-      (rs.getInt("product_id"), rs.getInt("amount"))
+    queryEvaluator.select("select * from virtual_items where user_id = ? and app_id = ?", userId, gameId) { rs =>
+      (rs.getInt("item_id"), rs.getInt("amount"))
     } map(_.toMap)
   }
 
@@ -93,8 +95,8 @@ class VoucherService(queryEvaluator: AsyncQueryEvaluator, qrsize:Int) {
   // todo: verify input
   def consumeVirtualGoods(userId:String, gameId:Int, vGoodId:Int, amount:Int) = {
     // minimum amount is 0, no negative
-    queryEvaluator.execute("update inventory set amount = if(amount - ? > 0, amount - ?, 0) " +
-                           "where user_id = ? and game_id = ? and product_id = ?",
+    queryEvaluator.execute("update virtual_items set amount = if(amount - ? > 0, amount - ?, 0) " +
+                           "where user_id = ? and app_id = ? and item_id = ?",
                            amount, amount, userId, gameId, vGoodId) map {
       case 1 => "consumed"
       case _ => "virtual product not found"
