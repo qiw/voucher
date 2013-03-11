@@ -14,6 +14,8 @@ Usage: java -jar <jarfile> [options]
         db user, be sure to have r/w privilege
   --dbpwd <value>
         password
+  --dbdriver
+        jdbc driver
   --qrsize <value>
         size of the qr code png, default 160
 
@@ -149,3 +151,10 @@ to do what the game developer is supposed to do.
   embed this in some web view of the app
   <img alt="Embedded Image"
   src="data:image/png;base64,<paste the encoded qr code here>" />
+
+* Heroku
+  heroku config --app <app_name> gives
+  postgres://<user>:<pwd>@<host>:<port>/<dbname>
+  then run
+  script/voucher.sh --db <dbname> --dbuser <user> --dbpwd <dbpwd> --dbhost <host> --dbport <port> --dbdriver "jdbc:postgresql"
+  to start the service. 
