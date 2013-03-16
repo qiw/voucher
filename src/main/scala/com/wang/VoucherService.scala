@@ -58,9 +58,13 @@ class VoucherService(queryEvaluator: AsyncQueryEvaluator, qrsize:Int) {
   def getPromotion(promotionId:Int) = {
     queryEvaluator.select("select * from matches join campaigns on matches.campaign_id = campaigns.id " +
                           "where matches.id = ?", promotionId) { rs =>
-      rs.getString("campaigns.other_infos")
+      (rs.getString("campaigns.other_infos"), rs.getString("campaigns.link"))
     } map(
-      _.headOption map { d => Map("description" -> d)
+      _.headOption map { case (info, link) =>
+      Map(
+        "description" -> info,
+        "link" -> link
+      )
       } getOrElse (Map("description" -> "invalid promotion"))
     )
   }
